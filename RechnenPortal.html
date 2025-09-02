@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>MathArena 12 Ultimate</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+  body {
+    font-family: 'Roboto', sans-serif;
+    margin:0; padding:0;
+    height:100vh;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background: linear-gradient(135deg, #a3f7bf, #6ec6ff);
+    overflow:hidden;
+  }
+  .container {
+    background:white;
+    border-radius:25px;
+    padding:30px;
+    width:480px;
+    box-shadow:0 8px 25px rgba(0,0,0,0.25);
+    text-align:center;
+    position:relative;
+  }
+  h1 { color:#0077cc; margin-bottom:15px; }
+  input, button, select {
+    width:100%; padding:10px; margin:10px 0;
+    border-radius:12px; border:1px solid #ccc;
+    font-size:16px;
+  }
+  button {
+    background:#0077cc; color:white; border:none; cursor:pointer;
+    transition:0.2s;
+  }
+  button:hover { background:#005fa3; transform:scale(1.05); }
+  .hidden { display:none; }
+  #sidebar {
+    position:fixed; right:10px; top:10px;
+    background:white; padding:15px; border-radius:20px;
+    width:220px; box-shadow:0 5px 20px rgba(0,0,0,0.2);
+    text-align:center;
+  }
+  #avatarPreview {
+    width:60px; height:60px; border-radius:50%;
+    margin:10px auto; border:2px solid #0077cc;
+    transition:0.3s;
+  }
+  .confetti {
+    position:absolute;
+    width:10px; height:10px;
+    background:red;
+    animation:fall 1s linear forwards;
+    opacity:0.9;
+  }
+  @keyframes fall {
+    0% { transform:translateY(0) rotate(0deg);}
+    100% { transform:translateY(200px) rotate(360deg); opacity:0; }
+  }
+  .grade {
+    font-size:32px;
+    border:2px solid #0077cc;
+    padding:5px 15px;
+    border-radius:12px;
+    display:inline-block;
+    transform:rotate(-5deg);
+    background:#e0f7ff;
+    transition:0.3s;
+  }
+</style>
+</head>
+<body>
+
+<!-- Login -->
+<div class="container" id="loginScreen">
+  <h1>MathArena 12</h1>
+  <input type="text" id="loginName" placeholder="Name">
+  <input type="password" id="loginPass" placeholder="Passwort">
+  <button onclick="login()">Login</button>
+  <p>Noch kein Konto? <a href="#" onclick="showRegister()">Registrieren</a></p>
+</div>
+
+<!-- Registrierung -->
+<div class="container hidden" id="registerScreen">
+  <h1>Registrieren</h1>
+  <input type="text" id="regName" placeholder="Name">
+  <input type="password" id="regPass" placeholder="Passwort">
+  <input type="number" id="regAge" placeholder="Alter">
+  <button onclick="register()">Konto erstellen</button>
+  <p>Schon registriert? <a href="#" onclick="showLogin()">Login</a></p>
+</div>
+
+<!-- Hauptmenü -->
+<div class="container hidden" id="mainMenu">
+  <h1>Willkommen <span id="playerName"></span></h1>
+  <button onclick="startSpeedtest()">📊 Speedtest starten</button>
+  <button onclick="openAvatarEditor()">🎭 Avatar-Editor</button>
+  <button onclick="showLeaderboard()">🏆 Rangliste</button>
+  <button onclick="openShop()">🛒 Shop</button>
+  <button class="hidden" id="adminBtn" onclick="showAdmin()">⚡ Admin-Konsole</button>
+</div>
+
+<!-- Speedtest -->
+<div class="container hidden" id="speedtest">
+  <h1>📊 Speedtest</h1>
+  <p id="questionText"></p>
+  <input type="text" id="answerInput" placeholder="Antwort eingeben">
+  <button onclick="submitAnswer()">Antwort prüfen</button>
+  <p id="scoreText"></p>
+  <button onclick="endSpeedtest()" class="hidden" id="endButton">Beenden</button>
+</div>
+
+<!-- Avatar-Editor -->
+<div class="container hidden" id="avatarEditor">
+  <h1>🎭 Avatar-Editor</h1>
+  <p>Wähle deine Farbe:</p>
+  <input type="color" id="avatarColor">
+  <button onclick="saveAvatar()">Speichern</button>
+  <button onclick="closeAvatarEditor()">Zurück</button>
+</div>
+
+<!-- Rangliste -->
+<div class="container hidden" id="leaderboard">
+  <h1>🏆 Rangliste</h1>
+  <ol id="leaderboardList"></ol>
+  <button onclick="closeLeaderboard()">Zurück</button>
+</div>
+
+<!-- Shop -->
+<div class="container hidden" id="shop">
+  <h1>🛒 Shop</h1>
+  <button onclick="buyCoins(100)">💰 100 Münzen</button>
+  <button onclick="buyCoins(500)">💰 500 Münzen</button>
+  <button onclick="closeShop()">Zurück</button>
+</div>
+
+<!-- Admin-Konsole -->
+<div class="container hidden" id="adminConsole">
+  <h1>⚡ Owner-Konsole</h1>
+  <button onclick="addPoints(9999)">+9999 Münzen</button>
+  <button onclick="unlockAll()">Alle Avatare freischalten</button>
+  <button onclick="resetGame()">Reset</button>
+  <button onclick="showMain()">Zurück</button>
+</div>
+
+<!-- Sidebar -->
+<div id="sidebar" class="hidden">
+  <p>👤 <span id="sidebarName"></span></p>
+  <div id="avatarPreview"></div>
+  <p>🎖 Rang: <span id="sidebarRank"></span></p>
+  <p>💰 Münzen: <span id="sidebarCoins"></span></p>
+</div>
+
+<script>
+// --- User Management ---
+let users = {};
+let currentUser = null;
+let avatarColor = "#ff0000";
+
+// Fragen nach Alter
+const questionsByAge = {
+  4:[{q:"2+2",a:"4"},{q:"1+3",a:"4"},{q:"3-1",a:"2"}],
+  6:[{q:"5+3",a:"8"},{q:"6-2",a:"4"},{q:"2*3",a:"6"}],
+  10:[{q:"12+9*2",a:"30"},{q:"√64+7",a:"15"},{q:"100/4-6",a:"19"}]
+};
+
+let speedtestQuestions = [];
+let currentQuestion = 0;
+let correctAnswers = 0;
+
+// --- Navigation ---
+function showRegister(){document.getElementById("loginScreen").classList.add("hidden");document.getElementById("registerScreen").classList.remove("hidden");}
+function showLogin(){document.getElementById("registerScreen").classList.add("hidden");document.getElementById("loginScreen").classList.remove("hidden");}
+
+// --- Registration ---
+function register(){
+  let name=document.getElementById("regName").value.trim();
+  let pass=document.getElementById("regPass").value.trim();
+  let age=parseInt(document.getElementById("regAge").value.trim());
+  if(!name||!pass||!age){alert("Bitte alles ausfüllen!");return;}
+  if(name.toLowerCase()==="owner"){alert("Dieser Name ist reserviert!");return;}
+  if(users[name]){alert("Name bereits vergeben!");return;}
+  users[name]={password:pass,age:age,coins:0,rank:"Bronze",avatarColor:"#ff0000"};
+  alert("Konto erstellt! Jetzt einloggen."); showLogin();
+}
+
+// --- Login ---
+function login(){
+  let name=document.getElementById("loginName").value.trim();
+  let pass=document.getElementById("loginPass").value.trim();
+  if(name.toLowerCase()==="owner"&&pass==="1234"){
+    currentUser={name:"Owner",coins:9999,rank:"👑 Owner",age:99,avatarColor:"#ff0000"};
+    document.getElementById("adminBtn").classList.remove("hidden");
+    startSession(); return;
+  }
+  if(users[name]&&users[name].password===pass){
+    currentUser=users[name]; currentUser.name=name;
+    document.getElementById("adminBtn").classList.add("hidden");
+    startSession();
+  }else{alert("Login fehlgeschlagen!");}
+}
+
+// --- Start Session ---
+function startSession(){
+  document.getElementById("loginScreen").classList.add("hidden");
+  document.getElementById("registerScreen").classList.add("hidden");
+  document.getElementById("mainMenu").classList.remove("hidden");
+  document.getElementById("sidebar").classList.remove("hidden");
+  document.getElementById("playerName").innerText=currentUser.name;
+  document.getElementById("sidebarName").innerText=currentUser.name;
+  document.getElementById("sidebarRank").innerText=currentUser.rank;
+  document.getElementById("sidebarCoins").innerText=currentUser.coins;
+  avatarColor=currentUser.avatarColor||"#ff0000";
+  document.getElementById("avatarPreview").style.backgroundColor=avatarColor;
+}
+
+// --- Admin ---
+function showMain(){document.getElementById("adminConsole").classList.add("hidden");document.getElementById("mainMenu").classList.remove("hidden");}
+function showAdmin(){document.getElementById("mainMenu").classList.add("hidden");document.getElementById("adminConsole").classList.remove("hidden");}
+function addPoints(num){currentUser.coins+=num;document.getElementById("sidebarCoins").innerText=currentUser.coins;alert(num+" Münzen hinzugefügt!");}
+function unlockAll(){alert("Alle Avatare freigeschaltet!");}
+function resetGame(){currentUser.coins=0;currentUser.rank="Bronze";currentUser.avatarColor="#ff0000";document.getElementById("sidebarCoins").innerText=currentUser.coins;document.getElementById("sidebarRank").innerText=currentUser.rank;document.getElementById("avatarPreview").style.backgroundColor=currentUser.avatarColor;alert("Reset erfolgreich!");}
+
+// --- Speedtest ---
+function startSpeedtest(){
+  document.getElementById("mainMenu").classList.add("hidden");
+  document.getElementById("speedtest").classList.remove("hidden");
+  currentQuestion=0; correctAnswers=0;
+  document.getElementById("scoreText").innerText="";
+  document.getElementById("endButton").classList.add("hidden");
+  speedtestQuestions=currentUser.name==="Owner"?[].concat(...Object.values(questionsByAge)):questionsByAge[currentUser.age]||[];
+  showQuestion();
+}
+function showQuestion(){
+  if(speedtestQuestions.length===0){document.getElementById("questionText").innerText="Keine Fragen für dein Alter verfügbar!";document.getElementById("answerInput").style.display="none";document.getElementById("endButton").classList.remove("hidden");return;}
+  document.getElementById("questionText").innerText="Frage "+(currentQuestion+1)+": "+speedtestQuestions[currentQuestion].q;
+  document.getElementById("answerInput").value="";
+}
+function submitAnswer(){
+  const userAnswer=document.getElementById("answerInput").value.trim();
+  if(userAnswer===""){alert("Bitte Antwort eingeben!"); return;}
+  if(userAnswer===speedtestQuestions[currentQuestion].a){correctAnswers++; animateCoins();}
+  currentQuestion++;
+  if(currentQuestion<speedtestQuestions.length){showQuestion();}
+  else{showResult();}
+}
+function showResult(){
+  const scorePercent=(correctAnswers/speedtestQuestions.length)*100;
+  let grade; if(scorePercent>=90)grade="1";else if(scorePercent>=75)grade="2";else if(scorePercent>=60)grade="3";else if(scorePercent>=45)grade="4";else if(scorePercent>=30)grade="5";else grade="6";
+  document.getElementById("scoreText").innerHTML=`Du hast ${correctAnswers} von ${speedtestQuestions.length} richtig.<br>Note: <span class="grade">${grade}</span>`;
+  currentUser.coins+=correctAnswers*10;
+  document.getElementById("sidebarCoins").innerText=currentUser.coins;
+  document.getElementById("endButton").classList.remove("hidden");
+  if(correctAnswers===speedtestQuestions.length) triggerConfetti();
+}
+function endSpeedtest(){
+  document.getElementById("speedtest").classList.add("hidden");
+  document.getElementById("answerInput").style.display="block";
+  document.getElementById("mainMenu").classList.remove("hidden");
+}
+
+// --- Avatar ---
+function openAvatarEditor(){document.getElementById("mainMenu").classList.add("hidden");document.getElementById("avatarEditor").classList.remove("hidden");document.getElementById("avatarColor").value=avatarColor;}
+function saveAvatar(){avatarColor=document.getElementById("avatarColor").value;currentUser.avatarColor=avatarColor;document.getElementById("avatarPreview").style.backgroundColor=avatarColor;closeAvatarEditor();}
+function closeAvatarEditor(){document.getElementById("avatarEditor").classList.add("hidden");document.getElementById("mainMenu").classList.remove("hidden");}
+
+// --- Rangliste ---
+function showLeaderboard(){
+  document.getElementById("mainMenu").classList.add("hidden");
+  document.getElementById("leaderboard").classList.remove("hidden");
+  let list=document.getElementById("leaderboardList");
+  list.innerHTML="";
+  let allPlayers=Object.keys(users).map(n=>({name:n,coins:users[n].coins,avatar:users[n].avatarColor})); 
+  allPlayers.push({name:currentUser.name,coins:currentUser.coins,avatar:currentUser.avatarColor});
+  allPlayers.sort((a,b)=>b.coins-a.coins);
+  allPlayers.slice(0,3).forEach(p=>{
+    let li=document.createElement("li");
+    li.innerHTML=`<span style="display:inline-block;width:15px;height:15px;background:${p.avatar};border-radius:50%;margin-right:5px;"></span>${p.name} - ${p.coins} Münzen`;
+    list.appendChild(li);
+  });
+}
+function closeLeaderboard(){document.getElementById("leaderboard").classList.add("hidden");document.getElementById("mainMenu").classList.remove("hidden");}
+
+// --- Shop ---
+function openShop(){document.getElementById("mainMenu").classList.add("hidden");document.getElementById("shop").classList.remove("hidden");}
+function buyCoins(amount){currentUser.coins+=amount;document.getElementById("sidebarCoins").innerText=currentUser.coins;animateCoins();alert(amount+" Münzen gekauft!");}
+function closeShop(){document.getElementById("shop").classList.add("hidden");document.getElementById("mainMenu").classList.remove("hidden");}
+
+// --- Animation ---
+function triggerConfetti(){
+  for(let i=0;i<30;i++){
+    let c=document.createElement("div"); c.className="confetti"; 
+    c.style.background=["#ff4d4d","#4dff4d","#4d4dff","#ffea4d"][Math.floor(Math.random()*4)];
+    c.style.left=Math.random()*400+"px"; c.style.top="0px";
+    document.body.appendChild(c);
+    setTimeout(()=>c.remove(),1000);
+  }
+}
+function animateCoins(){
+  let c=document.createElement("div"); c.textContent="+10"; 
+  c.style.position="absolute"; c.style.color="#ffd700"; c.style.fontWeight="bold";
+  c.style.left="200px"; c.style.top="50px"; c.style.fontSize="20px"; c.style.transition="all 1s linear";
+  document.body.appendChild(c);
+  setTimeout(()=>{c.style.top="10px"; c.style.left="180px";c.style.opacity="0";},10);
+  setTimeout(()=>c.remove(),1000);
+}
+</script>
+</body>
+</html>
