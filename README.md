@@ -16,6 +16,3 @@ MathArena12 ist ein interaktives Mini-Spielportal zum Mathe üben.
 3. Wähle Speedtest, Avatar oder Shop.
 4. Sammle Münzen und verbessere deinen Rang!
 
-## Owner Account
-- Benutzername: `Owner`
-- Passwort: `1234`
